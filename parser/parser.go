@@ -76,6 +76,10 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	return lit
 }
 
+func (p *Parser) parseBoolean() ast.Expression {
+	return &ast.Boolean{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
+}
+
 // 解析表达式中的前缀运算符，再处理右边表达式
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression := &ast.PrefixExpression{
@@ -85,6 +89,15 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	p.nextToken()
 	expression.Right = p.parseExpression(PREFIX)
 	return expression
+}
+
+func (p *Parser) parseGroupedExpression() ast.Expression {
+	p.nextToken()
+	exp := p.parseExpression(LOWEST) // 提高括号内优先级（将括号内内容，从头开始当作一条全新语句来解析）
+	if !p.expectPeek(token.RPAREN) { // 碰到右括号和;效果一样，因为他们优先级都是LOWEST
+		return nil
+	}
+	return exp
 }
 
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
@@ -112,8 +125,11 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.TRUE, p.parseBoolean)
+	p.registerPrefix(token.FALSE, p.parseBoolean)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
+	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 
 	// 为中缀运算符注册中缀解析函数
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
@@ -202,7 +218,7 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 // 解析独立的表达式语句
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
-	stmt.Expression = p.parseExpression(LOWEST)
+	stmt.Expression = p.parseExpression(LOWEST) // 最开始传入LOWEST用于保证该表达式能解析到分号为止
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
