@@ -83,10 +83,14 @@ func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 
 type Environment struct {
 	store map[string]Object
+	outer *Environment
 }
 
 func (e *Environment) Get(name string) (Object, bool) {
 	obj, ok := e.store[name]
+	if !ok && e.outer != nil {
+		obj, ok = e.outer.store[name] // 这层找不到就在外层找
+	}
 	return obj, ok
 }
 func (e *Environment) Set(name string, val Object) Object {
@@ -97,5 +101,11 @@ func (e *Environment) Set(name string, val Object) Object {
 // 用到环境绑定name和值
 func NewEnvironment() *Environment {
 	s := make(map[string]Object)
-	return &Environment{store: s}
+	return &Environment{store: s, outer: nil}
+}
+
+func NewEnclosedEnvironment(out *Environment) *Environment {
+	env := NewEnvironment()
+	env.outer = out
+	return env
 }
