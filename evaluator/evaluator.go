@@ -13,43 +13,51 @@ var (
 )
 
 // 每用一次Eval，就得及时错误处理，免得Error到处传递
-func Eval(node ast.Node) object.Object {
+func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) { // TODO 不是特别懂这句话啥意思
 	case *ast.Program:
-		return evalProgram(node.Statements)
+		return evalProgram(node.Statements, env)
 	case *ast.ExpressionStatement:
-		return Eval(node.Expression)
+		return Eval(node.Expression, env)
+	case *ast.Identifier:
+		return evalIdentifier(node, env)
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.PrefixExpression:
-		right := Eval(node.Right)
+		right := Eval(node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
-		left := Eval(node.Left)
+		left := Eval(node.Left, env)
 		if isError(left) {
 			return left
 		}
 
-		right := Eval(node.Right)
+		right := Eval(node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalInfixExpression(node.Operator, left, right)
 	case *ast.BlockStatement:
-		return evalBlockStatement(node.Statements)
+		return evalBlockStatement(node.Statements, env)
 	case *ast.IfExpression:
-		return evalIfExpression(node)
+		return evalIfExpression(node, env)
 	case *ast.ReturnStatement:
-		val := Eval(node.ReturnValue)
+		val := Eval(node.ReturnValue, env)
 		if isError(val) {
 			return val
 		}
 		return &object.ReturnValue{Value: val}
+	case *ast.LetStatement:
+		val := Eval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		env.Set(node.Name.Value, val)
 	}
 
 	return nil
@@ -66,11 +74,11 @@ func isError(obj object.Object) bool {
 	return false
 }
 
-func evalProgram(stmts []ast.Statement) object.Object {
+func evalProgram(stmts []ast.Statement, env *object.Environment) object.Object {
 	var result object.Object
 
 	for _, statement := range stmts {
-		result = Eval(statement)
+		result = Eval(statement, env)
 
 		switch result := result.(type) {
 		case *object.ReturnValue: // 一旦接收到returnValue就退出，返回其值
@@ -83,11 +91,11 @@ func evalProgram(stmts []ast.Statement) object.Object {
 	return result
 }
 
-func evalBlockStatement(stmts []ast.Statement) object.Object {
+func evalBlockStatement(stmts []ast.Statement, env *object.Environment) object.Object {
 	var result object.Object
 
 	for _, statement := range stmts {
-		result = Eval(statement)
+		result = Eval(statement, env)
 
 		// 在块内找到return不接包，丢到上级解return，以便于在多重嵌套中返回return
 		if result != nil {
@@ -196,17 +204,25 @@ func evalIntegerInfixExpression(operator string, left, right object.Object) obje
 	}
 }
 
-func evalIfExpression(ie *ast.IfExpression) object.Object {
-	condition := Eval(ie.Condition)
+func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
+	condition := Eval(ie.Condition, env)
 	if isError(condition) {
 		return condition
 	}
 
 	if isTruthy(condition) {
-		return Eval(ie.Consequence)
+		return Eval(ie.Consequence, env)
 	} else if ie.Alternative != nil {
-		return Eval(ie.Alternative)
+		return Eval(ie.Alternative, env)
 	} else {
 		return NULL
 	}
+}
+
+func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
+	val, ok := env.Get(node.Value)
+	if !ok {
+		return newError("identifier not found: " + node.Value)
+	}
+	return val
 }

@@ -308,7 +308,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt.Value = p.parseExpression(LOWEST)
 
 	// LetStatement遇到分号结束
-	if p.expectPeek(token.SEMICOLON) {
+	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
 
