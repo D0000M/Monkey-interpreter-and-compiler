@@ -34,10 +34,12 @@ const (
 	COMMA     = ","
 	SEMICOLON = ";"
 
-	LPAREN = "("
-	RPAREN = ")"
-	LBRACE = "{"
-	RBRACE = "}"
+	LPAREN   = "("
+	RPAREN   = ")"
+	LBRACKET = "["
+	RBRACKET = "]"
+	LBRACE   = "{"
+	RBRACE   = "}"
 
 	// 关键字
 	FUNCTION = "FUNCTION"
