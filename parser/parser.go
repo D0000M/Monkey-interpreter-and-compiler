@@ -186,6 +186,63 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	return array
 }
 
+func (p *Parser) parseHashLiteral() ast.Expression {
+	hash := &ast.HashLiteral{Token: p.curToken}
+	hash.Pairs = make(map[ast.Expression]ast.Expression)
+
+	// if p.peekTokenIs(token.RBRACE) {
+	// 	p.nextToken()
+	// 	return hash
+	// }
+
+	// p.nextToken()
+	// key := p.parseExpression(LOWEST)
+	// if !p.expectPeek(token.COLON) {
+	// 	return nil
+	// }
+	// p.nextToken()
+	// value := p.parseExpression(LOWEST)
+	// hash.Pairs[key] = value
+
+	// for p.peekTokenIs(token.COMMA) {
+	// 	p.nextToken()
+	// 	p.nextToken()
+	// 	key = p.parseExpression(LOWEST)
+	// 	if !p.expectPeek(token.COLON) {
+	// 		return nil
+	// 	}
+	// 	p.nextToken()
+	// 	value = p.parseExpression(LOWEST)
+	// 	hash.Pairs[key] = value
+	// }
+
+	for !p.peekTokenIs(token.RBRACE) {
+		p.nextToken()
+		key := p.parseExpression(LOWEST)
+
+		if !p.expectPeek(token.COLON) {
+			return nil
+		}
+
+		p.nextToken()
+		value := p.parseExpression(LOWEST)
+
+		hash.Pairs[key] = value
+
+		// 如果下一个不是'}'，就应该期待是','，否则报错
+		if !p.peekTokenIs(token.RBRACE) && !p.expectPeek(token.COMMA) {
+			return nil
+		}
+	}
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+
+	return hash
+
+}
+
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	exp := &ast.InfixExpression{
 		Token:    p.curToken,
@@ -267,6 +324,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
+	p.registerPrefix(token.LBRACE, p.parseHashLiteral)
 
 	// 为中缀运算符注册中缀解析函数
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)

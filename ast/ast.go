@@ -93,6 +93,28 @@ func (al *ArrayLiteral) String() string {
 	return out.String()
 }
 
+type HashLiteral struct {
+	Token token.Token // '{'词法单元
+	Pairs map[Expression]Expression
+}
+
+func (hl *HashLiteral) expressionNode()      {}
+func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
+func (hl *HashLiteral) String() string {
+	var out bytes.Buffer
+	var pairs []string
+
+	for k, v := range hl.Pairs {
+		pairs = append(pairs, k.String()+":"+v.String())
+	}
+
+	out.WriteString("{")
+	out.WriteString(strings.Join(pairs, ", "))
+	out.WriteString("}")
+
+	return out.String()
+}
+
 // 使用数组
 type IndexExpression struct {
 	Token token.Token // '['词法单元，作为中缀表达式时
