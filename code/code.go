@@ -11,15 +11,17 @@ type Opcode byte         // 操作码
 
 const (
 	OpConstant Opcode = iota
+	OpAdd
 )
 
 type Definition struct {
 	Name          string
-	OperandWidths []int // 每个操作数占用的字节数
+	OperandWidths []int // 有几个操作数，以及每个操作数占用的字节数
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant: {"OpConstant", []int{2}}, //两个字节宽的数
+	OpConstant: {"OpConstant", []int{2}}, //只有一个占两个字节宽的操作数
+	OpAdd:      {"OpAdd", []int{}},       // OpAdd没有操作数，只是顶部两个弹栈相加后，运算结果压栈
 }
 
 func (ins Instructions) String() string {
@@ -47,6 +49,8 @@ func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
 			len(operands), operandCount)
 	}
 	switch operandCount {
+	case 0:
+		return def.Name
 	case 1:
 		return fmt.Sprintf("%s %d", def.Name, operands[0])
 	}
@@ -91,7 +95,7 @@ func Make(op Opcode, operands ...int) []byte {
 	return instruction
 }
 
-// 用于解码
+// 用于解码，返回操作数列表，以及已读的字节数
 func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
 	operands := make([]int, len(def.OperandWidths))
 	offset := 0
