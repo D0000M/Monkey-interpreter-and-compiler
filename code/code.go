@@ -12,6 +12,7 @@ type Opcode byte         // 操作码
 const (
 	OpConstant Opcode = iota
 	OpAdd
+	OpPop // 每个表达式语句执行后，弹出栈顶元素
 )
 
 type Definition struct {
@@ -22,6 +23,7 @@ type Definition struct {
 var definitions = map[Opcode]*Definition{
 	OpConstant: {"OpConstant", []int{2}}, //只有一个占两个字节宽的操作数
 	OpAdd:      {"OpAdd", []int{}},       // OpAdd没有操作数，只是顶部两个弹栈相加后，运算结果压栈
+	OpPop:      {"OpPop", []int{}},
 }
 
 func (ins Instructions) String() string {

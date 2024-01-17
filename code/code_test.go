@@ -11,6 +11,7 @@ func TestMake(t *testing.T) {
 		// 大端编码 0xFF 0xFE
 		{OpConstant, []int{65534}, []byte{byte(OpConstant), 255, 254}},
 		{OpAdd, []int{}, []byte{byte(OpAdd)}},
+		{OpPop, []int{}, []byte{byte(OpPop)}},
 	}
 
 	for _, tt := range tests {
