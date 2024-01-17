@@ -21,6 +21,8 @@ const (
 	OpEqual
 	OpNotEqual
 	OpGreaterThan // 有且只有'>',而'<'通过编译器代码重排序实现
+	OpMinus
+	OpBang
 )
 
 type Definition struct {
@@ -40,6 +42,8 @@ var definitions = map[Opcode]*Definition{
 	OpEqual:       {"OpEqual", []int{}},
 	OpNotEqual:    {"OpNotEqual", []int{}},
 	OpGreaterThan: {"OpGreaterThan", []int{}},
+	OpMinus:       {"OpMinus", []int{}},
+	OpBang:        {"OpBang", []int{}},
 }
 
 func (ins Instructions) String() string {
