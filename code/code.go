@@ -16,6 +16,11 @@ const (
 	OpMul                    // *
 	OpDiv                    // /
 	OpPop                    // 每个表达式语句执行后，弹出栈顶元素
+	OpTrue                   // 将true压入栈
+	OpFalse                  // 将false压入栈
+	OpEqual
+	OpNotEqual
+	OpGreaterThan // 有且只有'>',而'<'通过编译器代码重排序实现
 )
 
 type Definition struct {
@@ -24,12 +29,17 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant: {"OpConstant", []int{2}}, //只有一个占两个字节宽的操作数
-	OpAdd:      {"OpAdd", []int{}},       // OpAdd没有操作数，只是顶部两个弹栈相加后，运算结果压栈
-	OpSub:      {"OpSub", []int{}},
-	OpMul:      {"OpMul", []int{}},
-	OpDiv:      {"OpDiv", []int{}},
-	OpPop:      {"OpPop", []int{}},
+	OpConstant:    {"OpConstant", []int{2}}, //只有一个占两个字节宽的操作数
+	OpAdd:         {"OpAdd", []int{}},       // OpAdd没有操作数，只是顶部两个弹栈相加后，运算结果压栈
+	OpSub:         {"OpSub", []int{}},
+	OpMul:         {"OpMul", []int{}},
+	OpDiv:         {"OpDiv", []int{}},
+	OpPop:         {"OpPop", []int{}},
+	OpTrue:        {"OpTrue", []int{}},
+	OpFalse:       {"OpFalse", []int{}},
+	OpEqual:       {"OpEqual", []int{}},
+	OpNotEqual:    {"OpNotEqual", []int{}},
+	OpGreaterThan: {"OpGreaterThan", []int{}},
 }
 
 func (ins Instructions) String() string {
