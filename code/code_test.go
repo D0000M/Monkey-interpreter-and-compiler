@@ -36,11 +36,11 @@ func TestMake(t *testing.T) {
 
 func TestInstructionsString(t *testing.T) {
 	instructions := []Instructions{
-		Make(OpAdd), Make(OpConstant, 2), Make(OpConstant, 65535),
+		Make(OpAdd), Make(OpConstant, 2), Make(OpNull),
 	}
 	expected := `0000 OpAdd
 0001 OpConstant 2
-0004 OpConstant 65535
+0004 OpNull
 `
 	concatted := Instructions{}
 	for _, ins := range instructions {
