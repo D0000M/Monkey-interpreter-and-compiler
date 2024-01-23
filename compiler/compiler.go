@@ -16,6 +16,7 @@ type EmittedInstruction struct {
 type Compiler struct {
 	instructions code.Instructions // 保存生成的字节码
 	constants    []object.Object   // 常量池
+	symbolTable  *SymbolTable      //符号表
 
 	lastInstruction     EmittedInstruction // 追踪最后一条命令
 	previousInstruction EmittedInstruction // 追踪倒数第二条命令
@@ -25,9 +26,17 @@ func New() *Compiler {
 	return &Compiler{
 		instructions:        code.Instructions{},
 		constants:           []object.Object{},
+		symbolTable:         NewSymbolTable(),
 		lastInstruction:     EmittedInstruction{},
 		previousInstruction: EmittedInstruction{},
 	}
+}
+
+func NewWithState(s *SymbolTable, constants []object.Object) *Compiler {
+	compiler := New()
+	compiler.constants = constants
+	compiler.symbolTable = s
+	return compiler
 }
 
 func (c *Compiler) Compile(node ast.Node) error {
@@ -41,6 +50,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		} else {
 			c.emit(code.OpFalse)
 		}
+	case *ast.Identifier:
+		symbol, ok := c.symbolTable.Resolve(node.Value) // 在送往虚拟机运行之前报错，编译时错误
+		if !ok {
+			return fmt.Errorf("undefined variable %s", node.Value)
+		}
+		c.emit(code.OpGetGlobal, symbol.Index) // 在字节码中将标识符替换
 	case *ast.IfExpression:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -80,6 +95,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 		afterAlternativePos := len(c.instructions)
 		c.changeOperand(jumpPos, afterAlternativePos)
 
+	case *ast.LetStatement:
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+		symbol := c.symbolTable.Define(node.Name.Value) // 包含Index
+		c.emit(code.OpSetGlobal, symbol.Index)
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
 			err := c.Compile(s)

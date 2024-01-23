@@ -8,6 +8,7 @@ import (
 )
 
 const StackSize = 2048
+const GlobalsSize = 65536
 
 var (
 	True  = &object.Boolean{Value: true}
@@ -19,8 +20,9 @@ type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
 
-	stack []object.Object
-	sp    int // 始终指向栈中下一个空闲槽。栈顶是stack[sp-1]
+	stack   []object.Object
+	globals []object.Object // 虚拟机全局存储
+	sp      int             // 始终指向栈中下一个空闲槽。栈顶是stack[sp-1]
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
@@ -28,8 +30,15 @@ func New(bytecode *compiler.Bytecode) *VM {
 		constants:    bytecode.Constants,
 		instructions: bytecode.Instructions,
 		stack:        make([]object.Object, StackSize),
+		globals:      make([]object.Object, GlobalsSize),
 		sp:           0,
 	}
+}
+
+func NewWithGlobalsStore(bytecode *compiler.Bytecode, s []object.Object) *VM {
+	vm := New(bytecode)
+	vm.globals = s
+	return vm
 }
 
 func (vm *VM) StackTop() object.Object {
@@ -71,6 +80,19 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpGetGlobal:
+			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			err := vm.push(vm.globals[globalIndex])
+			if err != nil {
+				return err
+			}
+		case code.OpSetGlobal:
+			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			vm.globals[globalIndex] = vm.pop()
 		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
