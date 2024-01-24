@@ -113,6 +113,17 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpArray:
+			numElements := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			array := vm.buildArray(vm.sp-int(numElements), vm.sp)
+			vm.sp = vm.sp - int(numElements) // 取出来就可以被覆盖了，移除所有数组元素
+			err := vm.push(array)
+			if err != nil {
+				return err
+			}
+
 		case code.OpJump:
 			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
 			ip = pos - 1
@@ -276,4 +287,14 @@ func isTruthy(obj object.Object) bool {
 	default:
 		return true
 	}
+}
+
+func (vm *VM) buildArray(startIndex, endIndex int) object.Object {
+	elements := make([]object.Object, endIndex-startIndex)
+
+	for i := startIndex; i < endIndex; i++ {
+		elements[i-startIndex] = vm.stack[i]
+	}
+
+	return &object.Array{Elements: elements}
 }
