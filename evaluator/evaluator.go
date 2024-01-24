@@ -164,7 +164,7 @@ func isTruthy(obj object.Object) bool {
 }
 
 func evalHashLiteral(hl *ast.HashLiteral, env *object.Environment) object.Object {
-	pairs := make(map[object.HashKey]object.HashPairs)
+	pairs := make(map[object.HashKey]object.HashPair)
 
 	for nodeKey, nodeValue := range hl.Pairs {
 		key := Eval(nodeKey, env)
@@ -183,7 +183,7 @@ func evalHashLiteral(hl *ast.HashLiteral, env *object.Environment) object.Object
 		}
 
 		hashed := hashKey.HashKey()
-		pairs[hashed] = object.HashPairs{Key: key, Value: value}
+		pairs[hashed] = object.HashPair{Key: key, Value: value}
 	}
 
 	return &object.Hash{Pairs: pairs}

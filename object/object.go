@@ -183,13 +183,13 @@ func (s *String) HashKey() HashKey {
 	return HashKey{Type: s.Type(), Value: h.Sum64()}
 }
 
-type HashPairs struct {
+type HashPair struct {
 	Key   Object
 	Value Object
 }
 
 type Hash struct {
-	Pairs map[HashKey]HashPairs
+	Pairs map[HashKey]HashPair
 }
 
 func (h *Hash) Type() ObjectType { return HASH_OBJ }

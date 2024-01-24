@@ -29,6 +29,7 @@ const (
 	OpGetGlobal
 	OpSetGlobal
 	OpArray
+	OpHash
 )
 
 type Definition struct {
@@ -56,6 +57,7 @@ var definitions = map[Opcode]*Definition{
 	OpGetGlobal:     {"OpGetGlobal", []int{2}},
 	OpSetGlobal:     {"OpSetGlobal", []int{2}},
 	OpArray:         {"OpArray", []int{2}}, // 操作数为数组元素的数量
+	OpHash:          {"OpHash", []int{2}},
 }
 
 func (ins Instructions) String() string {

@@ -123,6 +123,17 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpHash:
+			numPairs := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+
+			// 类似Array处理
+			hash, err := vm.buildHash(vm.sp-int(numPairs), vm.sp)
+			vm.sp = vm.sp - int(numPairs)
+			err = vm.push(hash)
+			if err != nil {
+				return err
+			}
 
 		case code.OpJump:
 			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
@@ -297,4 +308,26 @@ func (vm *VM) buildArray(startIndex, endIndex int) object.Object {
 	}
 
 	return &object.Array{Elements: elements}
+}
+
+func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
+	hashedPairs := make(map[object.HashKey]object.HashPair, endIndex-startIndex)
+
+	for i := startIndex; i < endIndex; i += 2 {
+		// pair := object.HashPair{Key: vm.stack[i], Value: vm.stack[i+1]}
+		// HashPair[pair.Key.(object.Hashable).HashKey()] = pair
+		// 时刻记住代码是写给人看的
+		key := vm.stack[i]
+		value := vm.stack[i+1]
+		pair := object.HashPair{Key: key, Value: value}
+
+		hashKey, ok := key.(object.Hashable)
+		if !ok {
+			return nil, fmt.Errorf("unusable as hash key: %s", key.Type())
+		}
+
+		hashedPairs[hashKey.HashKey()] = pair
+	}
+
+	return &object.Hash{Pairs: hashedPairs}, nil
 }
