@@ -30,6 +30,7 @@ const (
 	OpSetGlobal
 	OpArray
 	OpHash
+	OpIndex // 索引运算符
 )
 
 type Definition struct {
@@ -58,6 +59,7 @@ var definitions = map[Opcode]*Definition{
 	OpSetGlobal:     {"OpSetGlobal", []int{2}},
 	OpArray:         {"OpArray", []int{2}}, // 操作数为数组元素的数量
 	OpHash:          {"OpHash", []int{2}},
+	OpIndex:         {"OpIndex", []int{}}, // 默认栈顶有两个元素，一个被索引的对象和作为索引的对象
 }
 
 func (ins Instructions) String() string {
