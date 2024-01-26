@@ -94,6 +94,24 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		// c.instructions = c.instructions[:start]
 		// c.emit(code.OpConstant, c.addConstant(fn))
+
+		c.enterScope() // 编译函数时，改变指令的存储位置
+		err := c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+
+		if c.lastInstructionIs(code.OpPop) {
+			c.replaceLastPopWithReturn()
+		}
+
+		instructions := c.leaveScope()
+		compiledFn := &object.CompiledFunction{
+			Instructions: instructions,
+		}
+
+		c.emit(code.OpConstant, c.addConstant(compiledFn))
+
 	case *ast.IndexExpression: // 编译器不用在意索引的内容、操作是否有效，这是虚拟机的工作
 		err := c.Compile(node.Left)
 		if err != nil {
@@ -119,7 +137,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 		// 把if语句中最后一个pop指令删除，块语句中最后一个值是有用的
-		if c.lastInstructionIsPop() {
+		if c.lastInstructionIs(code.OpPop) {
 			c.removeLastPop()
 		}
 
@@ -138,7 +156,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 
-		if c.lastInstructionIsPop() {
+		if c.lastInstructionIs(code.OpPop) {
 			c.removeLastPop()
 		}
 
@@ -309,8 +327,18 @@ func (c *Compiler) setLastInstruction(op code.Opcode, pos int) {
 	c.scopes[c.scopeIndex].lastInstruction = last
 }
 
-func (c *Compiler) lastInstructionIsPop() bool {
-	return c.scopes[c.scopeIndex].lastInstruction.Opcode == code.OpPop
+func (c *Compiler) lastInstructionIs(op code.Opcode) bool {
+	if len(c.currentInstructions()) == 0 {
+		return false
+	}
+
+	return c.scopes[c.scopeIndex].lastInstruction.Opcode == op
+}
+
+func (c *Compiler) replaceLastPopWithReturn() {
+	lastPos := c.scopes[c.scopeIndex].lastInstruction.Position
+	c.replaceInstruction(lastPos, code.Make(code.OpReturnValue))
+	c.scopes[c.scopeIndex].lastInstruction.Opcode = code.OpReturnValue
 }
 
 func (c *Compiler) removeLastPop() {
