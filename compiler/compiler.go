@@ -105,6 +105,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.replaceLastPopWithReturn()
 		}
 
+		// 支持空函数，直接返回OpReturn
+		if !c.lastInstructionIs(code.OpReturnValue) {
+			c.emit(code.OpReturn)
+		}
+
 		instructions := c.leaveScope()
 		compiledFn := &object.CompiledFunction{
 			Instructions: instructions,
