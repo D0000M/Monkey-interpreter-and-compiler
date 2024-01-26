@@ -30,7 +30,10 @@ const (
 	OpSetGlobal
 	OpArray
 	OpHash
-	OpIndex // 索引运算符
+	OpIndex       // 索引运算符
+	OpCall        // 调用函数
+	OpReturnValue // 函数的隐式返回和显式返回值
+	OpReturn      // 函数没有返回值的返回，用于回到调用之前的状态
 )
 
 type Definition struct {
@@ -60,6 +63,9 @@ var definitions = map[Opcode]*Definition{
 	OpArray:         {"OpArray", []int{2}}, // 操作数为数组元素的数量
 	OpHash:          {"OpHash", []int{2}},
 	OpIndex:         {"OpIndex", []int{}}, // 默认栈顶有两个元素，一个被索引的对象和作为索引的对象
+	OpCall:          {"OpCall", []int{}},  // 调用函数
+	OpReturnValue:   {"OpReturnValue", []int{}},
+	OpReturn:        {"OpReturn", []int{}},
 }
 
 func (ins Instructions) String() string {
