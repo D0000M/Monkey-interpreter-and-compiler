@@ -117,6 +117,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.emit(code.OpConstant, c.addConstant(compiledFn))
 
+	case *ast.CallExpression:
+		err := c.Compile(node.Function)
+		if err != nil {
+			return err
+		}
+		c.emit(code.OpCall)
 	case *ast.IndexExpression: // 编译器不用在意索引的内容、操作是否有效，这是虚拟机的工作
 		err := c.Compile(node.Left)
 		if err != nil {
@@ -206,7 +212,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		symbol := c.symbolTable.Define(node.Name.Value) // 包含Index
 		c.emit(code.OpSetGlobal, symbol.Index)
-
 	case *ast.ReturnStatement:
 		err := c.Compile(node.ReturnValue)
 		if err != nil {

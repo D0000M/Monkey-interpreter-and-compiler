@@ -518,6 +518,46 @@ func TestCompilerScopes(t *testing.T) {
 	}
 }
 
+func TestFunctionCalls(t *testing.T) { // 对编译器来说调用函数，是被绑定名字或是字面量都不重要
+	tests := []compilerTestCase{
+		{
+			input: `fn() { 24 }();`,
+			expectedConstants: []interface{}{
+				24,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0), // "24"
+					code.Make(code.OpReturnValue)},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1), // 被编译函数
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: `
+			let noArg = fn() { 24 };
+			noArg();
+			`,
+			expectedConstants: []interface{}{
+				24,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0), // "24"
+					code.Make(code.OpReturnValue)},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1), // 被编译函数
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+
+	runCompilerTests(t, tests)
+}
+
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 
