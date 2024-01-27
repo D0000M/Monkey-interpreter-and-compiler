@@ -42,10 +42,12 @@ type VM struct {
 	framesIndex int
 }
 
+// 每当pushFrame，就运行新进的指令
 func (vm *VM) currentFrame() *Frame {
 	return vm.frames[vm.framesIndex-1]
 }
 
+// 进入函数体时运行，将vm运行的指令推到新来的frame中
 func (vm *VM) pushFrame(f *Frame) {
 	vm.frames[vm.framesIndex] = f
 	vm.framesIndex++
@@ -140,6 +142,32 @@ func (vm *VM) Run() error {
 			vm.currentFrame().ip += 2
 
 			vm.globals[globalIndex] = vm.pop()
+		case code.OpCall:
+			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction)
+			if !ok {
+				return fmt.Errorf("calling non-function")
+			}
+
+			frame := NewFrame(fn)
+			vm.pushFrame(frame)
+		case code.OpReturnValue:
+			returnValue := vm.pop() // 函数返回的值
+
+			vm.popFrame() // 弹出帧，使虚拟机在调用者上下文继续运行
+			vm.pop()      // 运行完函数后，将其从栈中弹出
+
+			err := vm.push(returnValue) // 将函数运行结果入栈
+			if err != nil {
+				return err
+			}
+		case code.OpReturn:
+			vm.popFrame()
+			vm.pop()
+
+			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
 		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
 			err := vm.executeBinaryOperation(op)
 			if err != nil {
