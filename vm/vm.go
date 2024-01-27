@@ -9,6 +9,7 @@ import (
 
 const StackSize = 2048
 const GlobalsSize = 65536
+const MaxFrames = 1024
 
 var (
 	True  = &object.Boolean{Value: true}
@@ -16,22 +17,60 @@ var (
 	Null  = &object.Null{}
 )
 
+// 栈帧
+type Frame struct {
+	fn *object.CompiledFunction
+	ip int // 指向该帧的命令指针
+}
+
+func NewFrame(fn *object.CompiledFunction) *Frame {
+	return &Frame{fn: fn, ip: -1}
+}
+
+func (f *Frame) Instructions() code.Instructions {
+	return f.fn.Instructions
+}
+
 type VM struct {
-	constants    []object.Object
-	instructions code.Instructions
+	constants []object.Object
 
 	stack   []object.Object
 	globals []object.Object // 虚拟机全局存储
 	sp      int             // 始终指向栈中下一个空闲槽。栈顶是stack[sp-1]
+
+	frames      []*Frame
+	framesIndex int
+}
+
+func (vm *VM) currentFrame() *Frame {
+	return vm.frames[vm.framesIndex-1]
+}
+
+func (vm *VM) pushFrame(f *Frame) {
+	vm.frames[vm.framesIndex] = f
+	vm.framesIndex++
+}
+
+func (vm *VM) popFrame() *Frame {
+	vm.framesIndex--
+	return vm.frames[vm.framesIndex]
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
+	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
+	mainFrame := NewFrame(mainFn)
+
+	frames := make([]*Frame, MaxFrames)
+	frames[0] = mainFrame
+
 	return &VM{
-		constants:    bytecode.Constants,
-		instructions: bytecode.Instructions,
-		stack:        make([]object.Object, StackSize),
-		globals:      make([]object.Object, GlobalsSize),
-		sp:           0,
+		constants: bytecode.Constants,
+		stack:     make([]object.Object, StackSize),
+		globals:   make([]object.Object, GlobalsSize),
+		sp:        0,
+
+		frames:      frames,
+		framesIndex: 1,
 	}
 }
 
@@ -69,28 +108,36 @@ func (vm *VM) pop() object.Object {
 }
 
 func (vm *VM) Run() error {
-	for ip := 0; ip < len(vm.instructions); ip++ {
-		op := code.Opcode(vm.instructions[ip]) // 取指令
+	var ip int
+	var ins code.Instructions
+	var op code.Opcode
+
+	for vm.currentFrame().ip < len(vm.currentFrame().fn.Instructions)-1 {
+		vm.currentFrame().ip++
+
+		ip = vm.currentFrame().ip
+		ins = vm.currentFrame().Instructions()
+		op = code.Opcode(ins[ip]) // 取指令
 
 		switch op {
 		case code.OpConstant:
-			constIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2                                  // 下一次迭代时，直接指向操作码，而不是操作数
+			constIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2                // 下一次迭代时，直接指向操作码，而不是操作数
 			err := vm.push(vm.constants[constIndex]) // 获取常量并压栈
 			if err != nil {
 				return err
 			}
 		case code.OpGetGlobal:
-			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			globalIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 
 			err := vm.push(vm.globals[globalIndex])
 			if err != nil {
 				return err
 			}
 		case code.OpSetGlobal:
-			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			globalIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 
 			vm.globals[globalIndex] = vm.pop()
 		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
@@ -114,8 +161,8 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpArray:
-			numElements := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			numElements := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 
 			array := vm.buildArray(vm.sp-int(numElements), vm.sp)
 			vm.sp = vm.sp - int(numElements) // 取出来就可以被覆盖了，移除所有数组元素
@@ -124,8 +171,8 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpHash:
-			numPairs := code.ReadUint16(vm.instructions[ip+1:])
-			ip += 2
+			numPairs := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
 
 			// 类似Array处理
 			hash, err := vm.buildHash(vm.sp-int(numPairs), vm.sp)
@@ -143,14 +190,14 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpJump:
-			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
-			ip = pos - 1
+			pos := int(code.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip = pos - 1
 		case code.OpJumpNotTruthy:
-			pos := int(code.ReadUint16(vm.instructions[ip+1:]))
-			ip += 2
+			pos := int(code.ReadUint16(ins[ip+1:]))
+			vm.currentFrame().ip += 2
 			condition := vm.pop()
 			if !isTruthy(condition) {
-				ip = pos - 1
+				vm.currentFrame().ip = pos - 1
 			}
 		case code.OpNull:
 			err := vm.push(Null)
