@@ -100,6 +100,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 		// c.emit(code.OpConstant, c.addConstant(fn))
 
 		c.enterScope() // 编译函数时，改变指令的存储位置
+
+		for _, p := range node.Parameters {
+			c.symbolTable.Define(p.Value) // 把每个参数名字，按顺序存到函数域local绑定里
+		}
+
 		err := c.Compile(node.Body)
 		if err != nil {
 			return err
@@ -131,7 +136,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
-		c.emit(code.OpCall)
+
+		for _, arg := range node.Arguments {
+			err = c.Compile(arg)
+			if err != nil {
+				return err
+			}
+		}
+		c.emit(code.OpCall, len(node.Arguments))
 	case *ast.IndexExpression: // 编译器不用在意索引的内容、操作是否有效，这是虚拟机的工作
 		err := c.Compile(node.Left)
 		if err != nil {
