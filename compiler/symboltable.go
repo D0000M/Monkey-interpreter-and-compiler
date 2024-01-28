@@ -58,7 +58,7 @@ func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 	obj, ok := s.store[name]
 	if !ok && s.Outer != nil { // 这一层找不到就向上找，然后立即返回
 		obj, ok = s.Outer.Resolve(name)
-		return obj, ok
+		return obj, ok // 加和不加有性能差距
 	}
 	return obj, ok
 }

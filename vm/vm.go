@@ -17,20 +17,6 @@ var (
 	Null  = &object.Null{}
 )
 
-// 栈帧
-type Frame struct {
-	fn *object.CompiledFunction
-	ip int // 指向该帧的命令指针
-}
-
-func NewFrame(fn *object.CompiledFunction) *Frame {
-	return &Frame{fn: fn, ip: -1}
-}
-
-func (f *Frame) Instructions() code.Instructions {
-	return f.fn.Instructions
-}
-
 type VM struct {
 	constants []object.Object
 
@@ -42,25 +28,9 @@ type VM struct {
 	framesIndex int
 }
 
-// 每当pushFrame，就运行新进的指令
-func (vm *VM) currentFrame() *Frame {
-	return vm.frames[vm.framesIndex-1]
-}
-
-// 进入函数体时运行，将vm运行的指令推到新来的frame中
-func (vm *VM) pushFrame(f *Frame) {
-	vm.frames[vm.framesIndex] = f
-	vm.framesIndex++
-}
-
-func (vm *VM) popFrame() *Frame {
-	vm.framesIndex--
-	return vm.frames[vm.framesIndex]
-}
-
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
-	mainFrame := NewFrame(mainFn)
+	mainFrame := NewFrame(mainFn, 0)
 
 	frames := make([]*Frame, MaxFrames)
 	frames[0] = mainFrame
@@ -124,11 +94,16 @@ func (vm *VM) Run() error {
 		switch op {
 		case code.OpConstant:
 			constIndex := code.ReadUint16(ins[ip+1:])
-			vm.currentFrame().ip += 2                // 下一次迭代时，直接指向操作码，而不是操作数
+			vm.currentFrame().ip += 2 // 下一次迭代时，直接指向操作码，而不是操作数
+
 			err := vm.push(vm.constants[constIndex]) // 获取常量并压栈
 			if err != nil {
 				return err
 			}
+		case code.OpSetGlobal:
+			globalIndex := code.ReadUint16(ins[ip+1:])
+			vm.currentFrame().ip += 2
+			vm.globals[globalIndex] = vm.pop()
 		case code.OpGetGlobal:
 			globalIndex := code.ReadUint16(ins[ip+1:])
 			vm.currentFrame().ip += 2
@@ -137,32 +112,52 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
-		case code.OpSetGlobal:
-			globalIndex := code.ReadUint16(ins[ip+1:])
-			vm.currentFrame().ip += 2
+		case code.OpSetLocal:
+			localIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
 
-			vm.globals[globalIndex] = vm.pop()
+			frame := vm.currentFrame()
+
+			// 将需要绑定的值弹出，并储存到相应位置
+			// 与全局绑定不同的是，局部绑定存储到栈中给函数预留的位置中
+			// 使用当前帧的基指针加上索引存储
+			vm.stack[frame.basePointer+int(localIndex)] = vm.pop()
+		case code.OpGetLocal:
+			localIndex := code.ReadUint8(ins[ip+1:])
+			vm.currentFrame().ip += 1
+
+			frame := vm.currentFrame()
+
+			err := vm.push(vm.stack[frame.basePointer+int(localIndex)])
+			if err != nil {
+				return err
+			}
 		case code.OpCall:
-			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction)
+			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction) // 函数运行到Return时才退栈
 			if !ok {
 				return fmt.Errorf("calling non-function")
 			}
 
-			frame := NewFrame(fn)
+			// 进入新的帧
+			frame := NewFrame(fn, vm.sp) // vm.sp作为新帧的basePointer
 			vm.pushFrame(frame)
+			vm.sp = frame.basePointer + fn.NumLocals // 下一个命令运行时，跳过给fn局部参数预留的槽
+			// 除了预留槽以外，其他的依旧照常运行在vm.sp，只有使用local值时才会用到frame.basePointer
 		case code.OpReturnValue:
 			returnValue := vm.pop() // 函数返回的值
 
-			vm.popFrame() // 弹出帧，使虚拟机在调用者上下文继续运行
-			vm.pop()      // 运行完函数后，将其从栈中弹出
+			frame := vm.popFrame()        // 弹出帧，使虚拟机在调用者上下文继续运行
+			vm.sp = frame.basePointer - 1 //切换到帧运行前的位置，并且-1已经将函数体从栈中弹出了
+
+			// vm.pop() // 运行完函数后，将其从栈中弹出
 
 			err := vm.push(returnValue) // 将函数运行结果入栈
 			if err != nil {
 				return err
 			}
 		case code.OpReturn:
-			vm.popFrame()
-			vm.pop()
+			frame := vm.popFrame()
+			vm.sp = frame.basePointer - 1
 
 			err := vm.push(Null)
 			if err != nil {
