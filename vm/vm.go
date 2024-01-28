@@ -133,6 +133,8 @@ func (vm *VM) Run() error {
 				return err
 			}
 		case code.OpCall:
+			vm.currentFrame().ip += 1
+
 			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction) // 函数运行到Return时才退栈
 			if !ok {
 				return fmt.Errorf("calling non-function")

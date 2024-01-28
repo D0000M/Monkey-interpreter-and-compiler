@@ -65,7 +65,7 @@ var definitions = map[Opcode]*Definition{
 	OpArray:         {"OpArray", []int{2}}, // 操作数为数组元素的数量
 	OpHash:          {"OpHash", []int{2}},
 	OpIndex:         {"OpIndex", []int{}}, // 默认栈顶有两个元素，一个被索引的对象和作为索引的对象
-	OpCall:          {"OpCall", []int{}},  // 调用函数
+	OpCall:          {"OpCall", []int{1}}, // 调用函数，有一个占据一字节的操作数表示调用函数的参数数目
 	OpReturnValue:   {"OpReturnValue", []int{}},
 	OpReturn:        {"OpReturn", []int{}},
 	OpGetLocal:      {"OpGetLocal", []int{1}},
@@ -125,7 +125,7 @@ func Make(op Opcode, operands ...int) []byte {
 		instructionLen += w
 	}
 
-	instruction := make([]byte, instructionLen)
+	instruction := make([]byte, instructionLen) // 若没有传入操作数，后面初始化为0
 	instruction[0] = byte(op)
 
 	offset := 1
