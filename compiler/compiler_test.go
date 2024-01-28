@@ -574,6 +574,7 @@ func TestFunctionCalls(t *testing.T) { // 对编译器来说调用函数，是�
 			`,
 			expectedConstants: []interface{}{
 				[]code.Instructions{
+					// 直接按名字取就行，在编译函数时，已经将函数参数按名字保存进local中了
 					code.Make(code.OpGetLocal, 0),
 					code.Make(code.OpReturnValue),
 				},

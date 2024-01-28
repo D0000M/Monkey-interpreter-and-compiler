@@ -132,19 +132,15 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
-		case code.OpCall:
+		case code.OpCall: // 在运行OpCall之前有GetGlobal————取fn，以及函数参数
+			numArgs := code.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
 
-			fn, ok := vm.stack[vm.sp-1].(*object.CompiledFunction) // 函数运行到Return时才退栈
-			if !ok {
-				return fmt.Errorf("calling non-function")
+			err := vm.callFunction(int(numArgs))
+			if err != nil {
+				return err
 			}
 
-			// 进入新的帧
-			frame := NewFrame(fn, vm.sp) // vm.sp作为新帧的basePointer
-			vm.pushFrame(frame)
-			vm.sp = frame.basePointer + fn.NumLocals // 下一个命令运行时，跳过给fn局部参数预留的槽
-			// 除了预留槽以外，其他的依旧照常运行在vm.sp，只有使用local值时才会用到frame.basePointer
 		case code.OpReturnValue:
 			returnValue := vm.pop() // 函数返回的值
 
@@ -446,4 +442,24 @@ func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
 	}
 
 	return &object.Hash{Pairs: hashedPairs}, nil
+}
+
+func (vm *VM) callFunction(numArgs int) error {
+
+	fn, ok := vm.stack[vm.sp-1-int(numArgs)].(*object.CompiledFunction) // 函数运行到Return时才退栈
+	if !ok {
+		return fmt.Errorf("calling non-function")
+	}
+	if numArgs != fn.NumParameters {
+		return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
+	}
+
+	// 进入新的帧
+	frame := NewFrame(fn, vm.sp-numArgs) // vm.sp作为新帧的basePointer
+	vm.pushFrame(frame)
+
+	vm.sp = frame.basePointer + fn.NumLocals // 下一个命令运行时，跳过给fn局部参数预留的槽
+	// 除了预留槽以外，其他的依旧照常运行在vm.sp，只有使用local值时才会用到frame.basePointer
+
+	return nil
 }
