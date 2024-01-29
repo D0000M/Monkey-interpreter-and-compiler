@@ -132,11 +132,21 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpGetBuiltin:
+			builtinIndex := code.ReadUint8(ins[ip+1:]) // index用于直接从object.Builtins取函数
+			vm.currentFrame().ip += 1
+
+			definition := object.Builtins[builtinIndex]
+			err := vm.push(definition.Builtin)
+			if err != nil {
+				return err
+			}
+
 		case code.OpCall: // 在运行OpCall之前有GetGlobal————取fn，以及函数参数
 			numArgs := code.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
 
-			err := vm.callFunction(int(numArgs))
+			err := vm.executeCall(int(numArgs)) // 普通函数和内置函数运行方式不一样
 			if err != nil {
 				return err
 			}
@@ -444,12 +454,21 @@ func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
 	return &object.Hash{Pairs: hashedPairs}, nil
 }
 
-func (vm *VM) callFunction(numArgs int) error {
-
-	fn, ok := vm.stack[vm.sp-1-int(numArgs)].(*object.CompiledFunction) // 函数运行到Return时才退栈
-	if !ok {
-		return fmt.Errorf("calling non-function")
+func (vm *VM) executeCall(numArgs int) error {
+	callee := vm.stack[vm.sp-1-numArgs]
+	switch callee := callee.(type) {
+	case *object.CompiledFunction:
+		return vm.callFunction(callee, numArgs)
+	case *object.Builtin:
+		return vm.callBuiltin(callee, numArgs)
+	default:
+		return fmt.Errorf("calling non-function and non-built-in")
 	}
+}
+
+func (vm *VM) callFunction(fn *object.CompiledFunction, numArgs int) error {
+
+	// 函数运行到Return时才退栈
 	if numArgs != fn.NumParameters {
 		return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
 	}
@@ -460,6 +479,23 @@ func (vm *VM) callFunction(numArgs int) error {
 
 	vm.sp = frame.basePointer + fn.NumLocals // 下一个命令运行时，跳过给fn局部参数预留的槽
 	// 除了预留槽以外，其他的依旧照常运行在vm.sp，只有使用local值时才会用到frame.basePointer
+
+	return nil
+}
+
+func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
+	args := vm.stack[vm.sp-numArgs : vm.sp] // 直接取参数放到函数内运行
+
+	result := builtin.Fn(args...)
+
+	// 函数运行完退栈
+	vm.sp = vm.sp - 1 - numArgs
+
+	if result != nil {
+		vm.push(result)
+	} else {
+		vm.push(Null)
+	}
 
 	return nil
 }

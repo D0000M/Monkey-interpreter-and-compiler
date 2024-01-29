@@ -2,7 +2,7 @@ package object
 
 import "fmt"
 
-var builtins = []struct {
+var Builtins = []struct {
 	Name    string
 	Builtin *Builtin
 }{
@@ -107,25 +107,24 @@ var builtins = []struct {
 					return newError("wrong number of arguments. got=%d, want=2", len(args))
 				}
 				if args[0].Type() != ARRAY_OBJ {
-					return newError("argument to `rest` must be ARRAY, got %s", args[0].Type())
+					return newError("argument to `push` must be ARRAY, got %s", args[0].Type())
 				}
 
 				arr := args[0].(*Array)
 				length := len(arr.Elements)
-				if length > 0 {
-					newElements := make([]Object, length+1)
-					copy(newElements, arr.Elements)
-					newElements[length] = args[1]
-					return &Array{Elements: newElements}
-				}
-				return nil
+
+				newElements := make([]Object, length+1)
+				copy(newElements, arr.Elements)
+				newElements[length] = args[1]
+
+				return &Array{Elements: newElements}
 			},
 		},
 	},
 }
 
 func GetBuiltinByName(name string) *Builtin {
-	for _, def := range builtins {
+	for _, def := range Builtins {
 		if def.Name == name {
 			return def.Builtin
 		}

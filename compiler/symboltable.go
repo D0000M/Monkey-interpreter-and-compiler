@@ -3,8 +3,9 @@ package compiler
 type SymbolScope string
 
 const (
-	GlobalScope SymbolScope = "GLOBAL"
-	LocalScope  SymbolScope = "LOCAL"
+	GlobalScope  SymbolScope = "GLOBAL"
+	LocalScope   SymbolScope = "LOCAL"
+	BuiltinScope SymbolScope = "BUILTIN"
 )
 
 type Symbol struct {
@@ -61,4 +62,11 @@ func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 		return obj, ok // 加和不加有性能差距
 	}
 	return obj, ok
+}
+
+func (s *SymbolTable) DefineBuiltin(index int, name string) Symbol { // 找函数是靠名字找，index标明了vm运行时的存放地点
+	symbol := Symbol{Name: name, Scope: BuiltinScope, Index: index}
+
+	s.store[name] = symbol
+	return symbol
 }

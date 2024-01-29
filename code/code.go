@@ -36,6 +36,7 @@ const (
 	OpReturn      // 函数没有返回值的返回，用于回到调用之前的状态
 	OpSetLocal
 	OpGetLocal
+	OpGetBuiltin
 )
 
 type Definition struct {
@@ -70,6 +71,7 @@ var definitions = map[Opcode]*Definition{
 	OpReturn:        {"OpReturn", []int{}},
 	OpGetLocal:      {"OpGetLocal", []int{1}},
 	OpSetLocal:      {"OpSetLocal", []int{1}},
+	OpGetBuiltin:    {"OpGetBuiltin", []int{1}},
 }
 
 func (ins Instructions) String() string {
