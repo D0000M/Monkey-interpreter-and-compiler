@@ -30,7 +30,8 @@ type VM struct {
 
 func New(bytecode *compiler.Bytecode) *VM {
 	mainFn := &object.CompiledFunction{Instructions: bytecode.Instructions}
-	mainFrame := NewFrame(mainFn, 0)
+	mainClosure := &object.Closure{Fn: mainFn} // 主函数一样视作闭包
+	mainFrame := NewFrame(mainClosure, 0)
 
 	frames := make([]*Frame, MaxFrames)
 	frames[0] = mainFrame
@@ -84,7 +85,7 @@ func (vm *VM) Run() error {
 	var ins code.Instructions
 	var op code.Opcode
 
-	for vm.currentFrame().ip < len(vm.currentFrame().fn.Instructions)-1 {
+	for vm.currentFrame().ip < len(vm.currentFrame().Instructions())-1 {
 		vm.currentFrame().ip++
 
 		ip = vm.currentFrame().ip
@@ -141,7 +142,15 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpClosure:
+			constIndex := code.ReadUint16(ins[ip+1:])
+			_ = code.ReadUint8(ins[ip+3:])
+			vm.currentFrame().ip += 3
 
+			err := vm.pushClosure(int(constIndex))
+			if err != nil {
+				return err
+			}
 		case code.OpCall: // 在运行OpCall之前有GetGlobal————取fn，以及函数参数
 			numArgs := code.ReadUint8(ins[ip+1:])
 			vm.currentFrame().ip += 1
@@ -150,7 +159,6 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
-
 		case code.OpReturnValue:
 			returnValue := vm.pop() // 函数返回的值
 
@@ -457,8 +465,8 @@ func (vm *VM) buildHash(startIndex, endIndex int) (object.Object, error) {
 func (vm *VM) executeCall(numArgs int) error {
 	callee := vm.stack[vm.sp-1-numArgs]
 	switch callee := callee.(type) {
-	case *object.CompiledFunction:
-		return vm.callFunction(callee, numArgs)
+	case *object.Closure:
+		return vm.callClosure(callee, numArgs)
 	case *object.Builtin:
 		return vm.callBuiltin(callee, numArgs)
 	default:
@@ -466,18 +474,18 @@ func (vm *VM) executeCall(numArgs int) error {
 	}
 }
 
-func (vm *VM) callFunction(fn *object.CompiledFunction, numArgs int) error {
+func (vm *VM) callClosure(cl *object.Closure, numArgs int) error {
 
 	// 函数运行到Return时才退栈
-	if numArgs != fn.NumParameters {
-		return fmt.Errorf("wrong number of arguments: want=%d, got=%d", fn.NumParameters, numArgs)
+	if numArgs != cl.Fn.NumParameters {
+		return fmt.Errorf("wrong number of arguments: want=%d, got=%d", cl.Fn.NumParameters, numArgs)
 	}
 
 	// 进入新的帧
-	frame := NewFrame(fn, vm.sp-numArgs) // vm.sp作为新帧的basePointer
+	frame := NewFrame(cl, vm.sp-numArgs) // vm.sp作为新帧的basePointer
 	vm.pushFrame(frame)
 
-	vm.sp = frame.basePointer + fn.NumLocals // 下一个命令运行时，跳过给fn局部参数预留的槽
+	vm.sp = frame.basePointer + cl.Fn.NumLocals // 下一个命令运行时，跳过给fn局部参数预留的槽
 	// 除了预留槽以外，其他的依旧照常运行在vm.sp，只有使用local值时才会用到frame.basePointer
 
 	return nil
@@ -498,4 +506,15 @@ func (vm *VM) callBuiltin(builtin *object.Builtin, numArgs int) error {
 	}
 
 	return nil
+}
+
+func (vm *VM) pushClosure(constIndex int) error {
+	constant := vm.constants[constIndex]
+	function, ok := constant.(*object.CompiledFunction)
+	if !ok {
+		return fmt.Errorf("not a function: %+v", constant)
+	}
+
+	closure := &object.Closure{Fn: function}
+	return vm.push(closure)
 }

@@ -7,21 +7,21 @@ import (
 
 // 栈帧
 type Frame struct {
-	fn          *object.CompiledFunction
-	ip          int // 指向该帧的命令指针
-	basePointer int // 该帧执行完后恢复的命令指针值
+	cl          *object.Closure // 让Frame保持对Closure的支持
+	ip          int             // 指向该帧的命令指针
+	basePointer int             // 该帧执行完后恢复的命令指针值
 }
 
-func NewFrame(fn *object.CompiledFunction, basePointer int) *Frame {
+func NewFrame(cl *object.Closure, basePointer int) *Frame {
 	return &Frame{
-		fn:          fn,
+		cl:          cl,
 		ip:          -1,
 		basePointer: basePointer,
 	}
 }
 
 func (f *Frame) Instructions() code.Instructions {
-	return f.fn.Instructions
+	return f.cl.Fn.Instructions
 }
 
 // 每当pushFrame，就运行新进的指令
