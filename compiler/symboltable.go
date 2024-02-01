@@ -6,6 +6,7 @@ const (
 	GlobalScope  SymbolScope = "GLOBAL"
 	LocalScope   SymbolScope = "LOCAL"
 	BuiltinScope SymbolScope = "BUILTIN"
+	FreeScope    SymbolScope = "FREE"
 )
 
 type Symbol struct {
@@ -18,12 +19,14 @@ type SymbolTable struct {
 	Outer *SymbolTable // 用于访问外层符号表
 
 	store          map[string]Symbol
+	FreeSymbols    []Symbol
 	numDefinitions int
 }
 
 func NewSymbolTable() *SymbolTable {
 	s := make(map[string]Symbol)
-	return &SymbolTable{store: s}
+	free := []Symbol{}
+	return &SymbolTable{store: s, FreeSymbols: free}
 }
 
 func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
@@ -59,7 +62,16 @@ func (s *SymbolTable) Resolve(name string) (Symbol, bool) {
 	obj, ok := s.store[name]
 	if !ok && s.Outer != nil { // 这一层找不到就向上找，然后立即返回
 		obj, ok = s.Outer.Resolve(name)
-		return obj, ok // 加和不加有性能差距
+		if !ok {
+			return obj, ok
+		}
+
+		if obj.Scope == GlobalScope || obj.Scope == BuiltinScope {
+			return obj, ok
+		}
+
+		free := s.defineFree(obj) // 如果它是新的自由变量就注册到这层符号表中
+		return free, true
 	}
 	return obj, ok
 }
@@ -68,5 +80,16 @@ func (s *SymbolTable) DefineBuiltin(index int, name string) Symbol { // 找函�
 	symbol := Symbol{Name: name, Scope: BuiltinScope, Index: index}
 
 	s.store[name] = symbol
+	return symbol
+}
+
+// 将Symbol添加到FreeSymbols并返回FreeScope版本的符号
+func (s *SymbolTable) defineFree(original Symbol) Symbol {
+	s.FreeSymbols = append(s.FreeSymbols, original)
+
+	symbol := Symbol{Name: original.Name, Index: len(s.FreeSymbols) - 1}
+	symbol.Scope = FreeScope
+
+	s.store[original.Name] = symbol // 用于识别它是自由变量
 	return symbol
 }

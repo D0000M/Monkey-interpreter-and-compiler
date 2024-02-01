@@ -125,8 +125,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		// 保存该函数体中有多少local变量
 		numLocals := c.symbolTable.numDefinitions
+		freeSymbols := c.symbolTable.FreeSymbols
 
 		instructions := c.leaveScope()
+
+		for _, s := range freeSymbols { // 在封闭域中产生将自由变量压栈的指令
+			c.loadSymbol(s)
+		}
 
 		compiledFn := &object.CompiledFunction{
 			Instructions:  instructions,
@@ -135,7 +140,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		fnIndex := c.addConstant(compiledFn)
-		c.emit(code.OpClosure, fnIndex, 0)
+		c.emit(code.OpClosure, fnIndex, len(freeSymbols))
 
 	case *ast.CallExpression:
 		err := c.Compile(node.Function)
@@ -233,11 +238,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpHash, len(keys)*2)
 
 	case *ast.LetStatement:
+		// 在编译函数之前就绑定函数名，从而允许函数体引用函数名
+		symbol := c.symbolTable.Define(node.Name.Value) // 包含Index
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
-		symbol := c.symbolTable.Define(node.Name.Value) // 包含Index
 		if symbol.Scope == GlobalScope {
 			c.emit(code.OpSetGlobal, symbol.Index)
 		} else {
@@ -451,5 +457,7 @@ func (c *Compiler) loadSymbol(s Symbol) {
 		c.emit(code.OpGetLocal, s.Index)
 	case BuiltinScope:
 		c.emit(code.OpGetBuiltin, s.Index)
+	case FreeScope:
+		c.emit(code.OpGetFree, s.Index)
 	}
 }

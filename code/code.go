@@ -38,6 +38,7 @@ const (
 	OpGetLocal
 	OpGetBuiltin
 	OpClosure
+	OpGetFree // 用于在closure里存储自由变量，存储在其Free变量中
 )
 
 type Definition struct {
@@ -74,6 +75,7 @@ var definitions = map[Opcode]*Definition{
 	OpSetLocal:      {"OpSetLocal", []int{1}},
 	OpGetBuiltin:    {"OpGetBuiltin", []int{1}},
 	OpClosure:       {"OpClosure", []int{2, 1}}, // 第一个是常量索引用于常量池指定哪个函数转化成闭包，第二个是有多少个自由变量
+	OpGetFree:       {"OpGetFree", []int{1}},
 }
 
 func (ins Instructions) String() string {
