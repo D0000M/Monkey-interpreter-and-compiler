@@ -151,6 +151,13 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpCurrentClosure:
+			cl := vm.currentFrame().cl
+
+			err := vm.push(cl)
+			if err != nil {
+				return err
+			}
 
 		case code.OpClosure:
 			constIndex := code.ReadUint16(ins[ip+1:])
