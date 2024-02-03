@@ -105,6 +105,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.enterScope() // 编译函数时，改变指令的存储位置
 
+		if node.Name != "" { // 函数名字注册进去
+			c.symbolTable.DefineFunctionName(node.Name)
+		}
+
 		for _, p := range node.Parameters {
 			c.symbolTable.Define(p.Value) // 把每个参数名字，按顺序存到函数域local绑定里
 		}
@@ -459,5 +463,7 @@ func (c *Compiler) loadSymbol(s Symbol) {
 		c.emit(code.OpGetBuiltin, s.Index)
 	case FreeScope:
 		c.emit(code.OpGetFree, s.Index)
+	case FunctionScope:
+		c.emit(code.OpCurrentClosure)
 	}
 }

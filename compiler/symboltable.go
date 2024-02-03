@@ -3,10 +3,11 @@ package compiler
 type SymbolScope string
 
 const (
-	GlobalScope  SymbolScope = "GLOBAL"
-	LocalScope   SymbolScope = "LOCAL"
-	BuiltinScope SymbolScope = "BUILTIN"
-	FreeScope    SymbolScope = "FREE"
+	GlobalScope   SymbolScope = "GLOBAL"
+	LocalScope    SymbolScope = "LOCAL"
+	BuiltinScope  SymbolScope = "BUILTIN"
+	FreeScope     SymbolScope = "FREE"
+	FunctionScope SymbolScope = "FUNCTION"
 )
 
 type Symbol struct {
@@ -91,5 +92,12 @@ func (s *SymbolTable) defineFree(original Symbol) Symbol {
 	symbol.Scope = FreeScope
 
 	s.store[original.Name] = symbol // 用于识别它是自由变量
+	return symbol
+}
+
+func (s *SymbolTable) DefineFunctionName(name string) Symbol {
+	symbol := Symbol{Name: name, Scope: FunctionScope, Index: 0} // index为0，因为它就在栈的基指针里
+
+	s.store[name] = symbol
 	return symbol
 }

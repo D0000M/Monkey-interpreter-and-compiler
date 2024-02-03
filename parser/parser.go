@@ -392,6 +392,10 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	p.nextToken()
 	stmt.Value = p.parseExpression(LOWEST)
 
+	if fl, ok := stmt.Value.(*ast.FunctionLiteral); ok { // 如果是函数，有名字给加上
+		fl.Name = stmt.Name.Value
+	}
+
 	// LetStatement遇到分号结束
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()

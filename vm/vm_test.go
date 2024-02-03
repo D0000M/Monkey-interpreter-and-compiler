@@ -452,8 +452,10 @@ func TestClosures(t *testing.T) {
 		{
 			input: `
 			let newAdder = fn(a, b) {
-			fn(c) { a + b + c }; };
-			let adder = newAdder(1, 2); adder(8);
+				fn(c) { a + b + c }; 
+			};
+			let adder = newAdder(1, 2); 
+			adder(8);
 			`,
 			expected: 11,
 		},
@@ -471,11 +473,13 @@ func TestClosures(t *testing.T) {
 		{
 			input: `
 			let newAdderOuter = fn(a, b) {
-			let c = a + b; fn(d) {
-			let e = d + c;
-			fn(f) { e + f; }; };
+				let c = a + b; fn(d) {
+					let e = d + c;
+					fn(f) { e + f; }; 
+				};
 			};
-			let newAdderInner = newAdderOuter(1, 2) let adder = newAdderInner(3);
+			let newAdderInner = newAdderOuter(1, 2) 
+			let adder = newAdderInner(3);
 			adder(8);
 			`,
 			expected: 14,
@@ -483,20 +487,25 @@ func TestClosures(t *testing.T) {
 		{
 			input: `
 			let a = 1;
-			let newAdderOuter = fn(b) { fn(c) {
-				fn(d) { a + b + c + d }; };
-				};
-				let newAdderInner = newAdderOuter(2) let adder = newAdderInner(3);
+			let newAdderOuter = fn(b) { 
+				fn(c) {
+					fn(d) { a + b + c + d }; };
+					};
+				let newAdderInner = newAdderOuter(2) 
+				let adder = newAdderInner(3);
 				adder(8);
 				`,
 			expected: 14,
 		},
 		{
 			input: `
-				let newClosure = fn(a, b) { let one = fn() { a; };
-				let two = fn() { b; }; fn() { one() + two(); };
+				let newClosure = fn(a, b) { 
+					let one = fn() { a; };
+					let two = fn() { b; }; 
+					fn() { one() + two(); };
 				};
-				let closure = newClosure(9, 90); closure();
+				let closure = newClosure(9, 90); 
+				closure();
 				`,
 			expected: 99,
 		},
@@ -517,6 +526,38 @@ func TestRecursiveFunctions(t *testing.T) { // 递归闭包
 				countDown(1); `,
 			expected: 0,
 		},
+		{
+			input: `
+			let countDown = fn(x) {
+				if (x == 0) { 
+					return 0;
+				} else { 
+					countDown(x - 1);
+				} 
+			};
+
+			let wrapper = fn() { 
+				countDown(1);
+			}; 
+
+			wrapper(); `,
+			expected: 0,
+		},
+		{
+			input: `
+			let wrapper = fn() {
+				let countDown = fn(x) { 
+					if (x == 0) {
+						return 0; 
+					} else {
+						countDown(x - 1);
+					} 
+				};
+				countDown(1); 
+			};
+			wrapper(); `,
+			expected: 0,
+		},
 	}
 	runVmTests(t, tests)
 }
@@ -530,6 +571,17 @@ func runVmTests(t *testing.T, tests []vmTestCase) {
 		err := comp.Compile(program)
 		if err != nil {
 			t.Fatalf("compiler error: %s", err)
+		}
+
+		for i, constant := range comp.Bytecode().Constants {
+			fmt.Printf("CONSTANT %d %p (%T):\n", i, constant, constant)
+			switch constant := constant.(type) {
+			case *object.CompiledFunction:
+				fmt.Printf(" Instructions:\n%s", constant.Instructions)
+			case *object.Integer:
+				fmt.Printf(" Value: %d\n", constant.Value)
+			}
+			fmt.Printf("\n")
 		}
 
 		vm := New(comp.Bytecode())

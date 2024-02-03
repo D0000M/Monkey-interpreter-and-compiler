@@ -38,7 +38,8 @@ const (
 	OpGetLocal
 	OpGetBuiltin
 	OpClosure
-	OpGetFree // 用于在closure里存储自由变量，存储在其Free变量中
+	OpGetFree        // 用于在closure里存储自由变量，存储在其Free变量中
+	OpCurrentClosure // 引用自身closure
 )
 
 type Definition struct {
@@ -47,35 +48,36 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant:      {"OpConstant", []int{2}}, //只有一个占两个字节宽的操作数
-	OpAdd:           {"OpAdd", []int{}},       // OpAdd没有操作数，只是顶部两个弹栈相加后，运算结果压栈
-	OpSub:           {"OpSub", []int{}},
-	OpMul:           {"OpMul", []int{}},
-	OpDiv:           {"OpDiv", []int{}},
-	OpPop:           {"OpPop", []int{}},
-	OpTrue:          {"OpTrue", []int{}},
-	OpFalse:         {"OpFalse", []int{}},
-	OpEqual:         {"OpEqual", []int{}},
-	OpNotEqual:      {"OpNotEqual", []int{}},
-	OpGreaterThan:   {"OpGreaterThan", []int{}},
-	OpMinus:         {"OpMinus", []int{}},
-	OpBang:          {"OpBang", []int{}},
-	OpJumpNotTruthy: {"OpJumpNotTruthy", []int{2}},
-	OpJump:          {"OpJump", []int{2}},
-	OpNull:          {"OpNull", []int{}},
-	OpGetGlobal:     {"OpGetGlobal", []int{2}},
-	OpSetGlobal:     {"OpSetGlobal", []int{2}},
-	OpArray:         {"OpArray", []int{2}}, // 操作数为数组元素的数量
-	OpHash:          {"OpHash", []int{2}},
-	OpIndex:         {"OpIndex", []int{}}, // 默认栈顶有两个元素，一个被索引的对象和作为索引的对象
-	OpCall:          {"OpCall", []int{1}}, // 调用函数，有一个占据一字节的操作数表示调用函数的参数数目
-	OpReturnValue:   {"OpReturnValue", []int{}},
-	OpReturn:        {"OpReturn", []int{}},
-	OpGetLocal:      {"OpGetLocal", []int{1}},
-	OpSetLocal:      {"OpSetLocal", []int{1}},
-	OpGetBuiltin:    {"OpGetBuiltin", []int{1}},
-	OpClosure:       {"OpClosure", []int{2, 1}}, // 第一个是常量索引用于常量池指定哪个函数转化成闭包，第二个是有多少个自由变量
-	OpGetFree:       {"OpGetFree", []int{1}},
+	OpConstant:       {"OpConstant", []int{2}}, //只有一个占两个字节宽的操作数
+	OpAdd:            {"OpAdd", []int{}},       // OpAdd没有操作数，只是顶部两个弹栈相加后，运算结果压栈
+	OpSub:            {"OpSub", []int{}},
+	OpMul:            {"OpMul", []int{}},
+	OpDiv:            {"OpDiv", []int{}},
+	OpPop:            {"OpPop", []int{}},
+	OpTrue:           {"OpTrue", []int{}},
+	OpFalse:          {"OpFalse", []int{}},
+	OpEqual:          {"OpEqual", []int{}},
+	OpNotEqual:       {"OpNotEqual", []int{}},
+	OpGreaterThan:    {"OpGreaterThan", []int{}},
+	OpMinus:          {"OpMinus", []int{}},
+	OpBang:           {"OpBang", []int{}},
+	OpJumpNotTruthy:  {"OpJumpNotTruthy", []int{2}},
+	OpJump:           {"OpJump", []int{2}},
+	OpNull:           {"OpNull", []int{}},
+	OpGetGlobal:      {"OpGetGlobal", []int{2}},
+	OpSetGlobal:      {"OpSetGlobal", []int{2}},
+	OpArray:          {"OpArray", []int{2}}, // 操作数为数组元素的数量
+	OpHash:           {"OpHash", []int{2}},
+	OpIndex:          {"OpIndex", []int{}}, // 默认栈顶有两个元素，一个被索引的对象和作为索引的对象
+	OpCall:           {"OpCall", []int{1}}, // 调用函数，有一个占据一字节的操作数表示调用函数的参数数目
+	OpReturnValue:    {"OpReturnValue", []int{}},
+	OpReturn:         {"OpReturn", []int{}},
+	OpGetLocal:       {"OpGetLocal", []int{1}},
+	OpSetLocal:       {"OpSetLocal", []int{1}},
+	OpGetBuiltin:     {"OpGetBuiltin", []int{1}},
+	OpClosure:        {"OpClosure", []int{2, 1}}, // 第一个是常量索引用于常量池指定哪个函数转化成闭包，第二个是有多少个自由变量
+	OpGetFree:        {"OpGetFree", []int{1}},
+	OpCurrentClosure: {"OpCurrentClosure", []int{}},
 }
 
 func (ins Instructions) String() string {
